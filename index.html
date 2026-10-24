@@ -144,21 +144,55 @@ function saveUrl(){
  localStorage.setItem("rd-manager-api",$("api").value.trim());
  $("syncstatus").textContent="URL saved on this device. Deploy the Apps Script backend to connect.";
 }
-async function syncNow(){
- const url=$("api").value.trim();
- if(!url){alert("Pehle Google Apps Script Web App URL enter karein.");return}
- $("syncstatus").textContent="Connecting...";
- try{
-  const res=await fetch(url);
-  if(!res.ok)throw Error("HTTP "+res.status);
-  const data=await res.json();
-  if(!Array.isArray(data.records))throw Error("Unexpected response. Check Apps Script setup.");
-  rds=data.records;persist();
-  $("syncstatus").textContent="Synced from Google Sheets at "+new Date().toLocaleTimeString();
- }catch(e){https://script.google.com/macros/s/AKfycbymUjMX4HBIErKzDgmbmk5jtldkOT4teK3df4wmkV5LmRdvTbfgfOIVBJDqQmp5LYevBg/exec
-  $("syncstatus").textContent="Sync failed: "+e.message+". Check the Web App URL and deployment permissions.";
- }
+
+async function syncNow() {
+  const url = $("api").value.trim();
+
+  if (!url) {
+    $("syncstatus").textContent = "Please enter the Google Apps Script Web App URL.";
+    return;
+  }
+
+  $("syncstatus").textContent = "Connecting to Google Sheets...";
+
+  try {
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      throw new Error("HTTP error " + res.status);
+    }
+
+    const data = await res.json();
+
+    if (!data || !Array.isArray(data.records)) {
+      throw new Error("Apps Script must return a JSON object containing a records array.");
+    }
+
+    rds = data.records.map(r => ({
+      id: String(r.id || Date.now() + Math.random()),
+      name: String(r.name || ""),
+      monthly: Number(r.monthly || 0),
+      goal: Number(r.goal || 0),
+      start: String(r.start || ""),
+      duration: Number(r.duration || 60),
+      paid: Number(r.paid || 0)
+    }));
+
+    persist();
+
+    $("syncstatus").textContent =
+      "Sync successful at " + new Date().toLocaleTimeString() +
+      ". Records loaded: " + rds.length;
+
+  } catch (e) {
+    console.error("Google Sheets sync error:", e);
+
+    $("syncstatus").textContent =
+      "Sync failed: " + e.message +
+      ". Check the Web App URL, Apps Script deployment access, and doGet() response.";
+  }
 }
+
 function exportCSV(){
  const cols=["id","name","monthly","goal","start","duration","paid"];
  const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';

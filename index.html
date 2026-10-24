@@ -155,7 +155,7 @@ async function syncNow(){
   if(!Array.isArray(data.records))throw Error("Unexpected response. Check Apps Script setup.");
   rds=data.records;persist();
   $("syncstatus").textContent="Synced from Google Sheets at "+new Date().toLocaleTimeString();
- }catch(e){
+ }catch(e){https://script.google.com/macros/s/AKfycbymUjMX4HBIErKzDgmbmk5jtldkOT4teK3df4wmkV5LmRdvTbfgfOIVBJDqQmp5LYevBg/exec
   $("syncstatus").textContent="Sync failed: "+e.message+". Check the Web App URL and deployment permissions.";
  }
 }

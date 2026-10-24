@@ -1,1 +1,193 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RD Manager</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f3f6fb;color:#172033}
+header{background:#173b70;color:white;padding:22px}
+header h1{margin:0 0 7px}
+main{max-width:1100px;margin:auto;padding:18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.card,section{background:white;padding:17px;border-radius:12px;margin-bottom:15px;box-shadow:0 2px 9px #152b5010}
+.num{font-size:24px;font-weight:bold;margin-top:10px}
+input,button{padding:11px;border:1px solid #ccd4e0;border-radius:7px;font-size:14px}
+input{width:100%;margin:5px 0 12px}
+button{cursor:pointer;background:#2058a5;color:white;border:0;margin:3px}
+.secondary{background:#e7edf6;color:#173b70}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+form button{align-self:center}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:680px}
+th,td{text-align:left;padding:11px;border-bottom:1px solid #e5eaf1}
+th{background:#f1f5fa}
+small,.muted{color:#64748b}
+.status{font-weight:bold}
+</style>
+</head>
+<body>
+<header>
+<h1>RD Manager</h1>
+<div>Recurring Deposit Dashboard</div>
+</header>
+<main>
+<div class="cards">
+<div class="card">Total Target<div class="num" id="target">₹0</div></div>
+<div class="card">Total Deposited<div class="num" id="deposited">₹0</div></div>
+<div class="card">Remaining<div class="num" id="remaining">₹0</div></div>
+<div class="card">Active RDs<div class="num" id="count">0</div></div>
+</div>
+
+<section>
+<h2>Add / Edit RD</h2>
+<form id="rdform">
+<input id="id" type="hidden">
+<label>RD Name<input id="name" required placeholder="e.g. Bank RD"></label>
+<label>Monthly Installment (₹)<input id="monthly" type="number" min="1" required></label>
+<label>Target Amount (₹)<input id="goal" type="number" min="1" required></label>
+<label>Start Date<input id="start" type="date" required></label>
+<label>Duration (months)<input id="duration" type="number" min="1" value="60" required></label>
+<label>Paid Installments<input id="paid" type="number" min="0" value="0" required></label>
+<button type="submit">Save RD</button>
+</form>
+<button class="secondary" onclick="resetForm()">Clear Form</button>
+</section>
+
+<section>
+<h2>RD Records</h2>
+<p class="muted">Demo records are not added automatically. Add your own RD details.</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Name</th><th>Monthly</th><th>Deposited</th><th>Remaining</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody id="records"></tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2>Google Sheets Sync</h2>
+<p>Enter your deployed Google Apps Script Web App URL to enable online syncing.</p>
+<label>Web App URL<input id="api" placeholder="https://script.google.com/macros/s/.../exec"></label>
+<button onclick="saveUrl()">Save URL</button>
+<button onclick="syncNow()">Sync from Google Sheets</button>
+<button class="secondary" onclick="exportCSV()">Export CSV</button>
+<button class="secondary" onclick="document.getElementById('csvfile').click()">Import CSV</button>
+<input id="csvfile" type="file" accept=".csv" style="display:none" onchange="importCSV(event)">
+<p id="syncstatus" class="muted">Local storage active. Google Sheets is not connected yet.</p>
+</section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let rds = JSON.parse(localStorage.getItem("rd-manager-records") || "[]");
+$("api").value = localStorage.getItem("rd-manager-api") || "";
+
+function money(n){return "₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2})}
+function dateAdd(date,months){
+ let d=new Date(date+"T12:00:00");
+ d.setMonth(d.getMonth()+months);
+ return d;
+}
+function dateText(d){return d.toISOString().slice(0,10)}
+function nextDue(rd){
+ let d=dateAdd(rd.start,Number(rd.paid));
+ return dateText(d);
+}
+function status(rd){
+ if(Number(rd.paid)>=Number(rd.duration)) return "Completed";
+ let due=new Date(nextDue(rd)+"T23:59:59");
+ return due < new Date() ? "Overdue" : "Pending";
+}
+function render(){
+ $("target").textContent=money(rds.reduce((s,r)=>s+Number(r.goal),0));
+ $("deposited").textContent=money(rds.reduce((s,r)=>s+Number(r.monthly)*Number(r.paid),0));
+ $("remaining").textContent=money(rds.reduce((s,r)=>s+Math.max(0,Number(r.goal)-Number(r.monthly)*Number(r.paid)),0));
+ $("count").textContent=rds.filter(r=>Number(r.paid)<Number(r.duration)).length;
+ $("records").innerHTML="";
+ rds.forEach((r,i)=>{
+  const tr=document.createElement("tr");
+  [r.name,money(r.monthly),money(Number(r.monthly)*Number(r.paid)),
+   money(Math.max(0,Number(r.goal)-Number(r.monthly)*Number(r.paid))),
+   nextDue(r),status(r)].forEach((v)=>{
+    const td=document.createElement("td");td.textContent=v;tr.appendChild(td);
+  });
+  const td=document.createElement("td");
+  const edit=document.createElement("button");edit.textContent="Edit";edit.onclick=()=>editRD(i);
+  const del=document.createElement("button");del.textContent="Delete";del.className="secondary";del.onclick=()=>deleteRD(i);
+  td.append(edit,del);tr.appendChild(td);$("records").appendChild(tr);
+ });
+}
+function persist(){
+ localStorage.setItem("rd-manager-records",JSON.stringify(rds));render();
+}
+$("rdform").addEventListener("submit",e=>{
+ e.preventDefault();
+ const rd={id:$("id").value||String(Date.now()),name:$("name").value.trim(),
+ monthly:Number($("monthly").value),goal:Number($("goal").value),
+ start:$("start").value,duration:Number($("duration").value),paid:Number($("paid").value)};
+ if(rd.paid>rd.duration){alert("Paid installments cannot exceed duration.");return}
+ const i=rds.findIndex(x=>x.id===rd.id);
+ if(i>=0)rds[i]=rd;else rds.push(rd);
+ persist();resetForm();
+});
+function editRD(i){
+ const r=rds[i];
+ ["id","name","monthly","goal","start","duration","paid"].forEach(k=>$(k).value=r[k]??"");
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+function deleteRD(i){
+ if(confirm("Delete this RD record?")){rds.splice(i,1);persist()}
+}
+function resetForm(){$("rdform").reset();$("id").value="";$("duration").value=60;$("paid").value=0}
+function saveUrl(){
+ localStorage.setItem("rd-manager-api",$("api").value.trim());
+ $("syncstatus").textContent="URL saved on this device. Deploy the Apps Script backend to connect.";
+}
+async function syncNow(){
+ const url=$("api").value.trim();
+ if(!url){alert("Pehle Google Apps Script Web App URL enter karein.");return}
+ $("syncstatus").textContent="Connecting...";
+ try{
+  const res=await fetch(url);
+  if(!res.ok)throw Error("HTTP "+res.status);
+  const data=await res.json();
+  if(!Array.isArray(data.records))throw Error("Unexpected response. Check Apps Script setup.");
+  rds=data.records;persist();
+  $("syncstatus").textContent="Synced from Google Sheets at "+new Date().toLocaleTimeString();
+ }catch(e){
+  $("syncstatus").textContent="Sync failed: "+e.message+". Check the Web App URL and deployment permissions.";
+ }
+}
+function exportCSV(){
+ const cols=["id","name","monthly","goal","start","duration","paid"];
+ const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+ const csv=[cols.join(","),...rds.map(r=>cols.map(k=>esc(r[k])).join(","))].join("\r\n");
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
+ a.download="rd-manager.csv";a.click();URL.revokeObjectURL(a.href);
+}
+function importCSV(e){
+ const file=e.target.files[0];if(!file)return;
+ const reader=new FileReader();
+ reader.onload=()=>{
+  const lines=String(reader.result).trim().split(/\r?\n/);
+  const parse=line=>line.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map(x=>x.replace(/,$/,"").replace(/^"|"$/g,"").replace(/""/g,'"'));
+  const cols=parse(lines.shift());
+  const imported=lines.filter(Boolean).map(line=>{
+   const vals=parse(line),r={};cols.forEach((c,i)=>r[c]=vals[i]||"");
+   return r;
+  }).filter(r=>r.name && r.start);
+  if(confirm("Import "+imported.length+" records? This replaces current records.")){
+   rds=imported.map(r=>({...r,id:r.id||String(Date.now()+Math.random()),monthly:Number(r.monthly),goal:Number(r.goal),duration:Number(r.duration),paid:Number(r.paid)}));
+   persist();
+  }
+  e.target.value="";
+ };
+ reader.readAsText(file);
+}
+render();
+</script>
+</body>
+</html>

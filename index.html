@@ -1,226 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RD Manager</title>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RD Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#f3f6fb;color:#172033}
-header{background:#173b70;color:white;padding:22px}
-header h1{margin:0 0 7px}
-main{max-width:1100px;margin:auto;padding:18px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.card,section{background:white;padding:17px;border-radius:12px;margin-bottom:15px;box-shadow:0 2px 9px #152b5010}
-.num{font-size:24px;font-weight:bold;margin-top:10px}
-input,button{padding:11px;border:1px solid #ccd4e0;border-radius:7px;font-size:14px}
-input{width:100%;margin:5px 0 12px}
-button{cursor:pointer;background:#2058a5;color:white;border:0;margin:3px}
-.secondary{background:#e7edf6;color:#173b70}
-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
-form button{align-self:center}
-.tablewrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:680px}
-th,td{text-align:left;padding:11px;border-bottom:1px solid #e5eaf1}
-th{background:#f1f5fa}
-small,.muted{color:#64748b}
-.status{font-weight:bold}
-</style>
-</head>
-<body>
-<header>
-<h1>RD Manager</h1>
-<div>Recurring Deposit Dashboard</div>
-</header>
+*{box-sizing:border-box}body{margin:0;background:#f2f5fa;color:#172033;font:15px Arial,sans-serif}header{background:#173b70;color:#fff;padding:22px}header h1{margin:0 0 5px}main{max-width:1100px;margin:auto;padding:18px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}.card,section{background:white;border-radius:12px;padding:17px;margin-bottom:15px;box-shadow:0 2px 9px #152b5010}.num{font-size:24px;font-weight:bold;margin-top:9px}form,.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px}label{display:block;font-size:14px}input,button{padding:11px;border:1px solid #ccd4e0;border-radius:7px;font-size:14px}input{display:block;width:100%;margin:6px 0 10px}button{cursor:pointer;background:#2058a5;color:white;border:0;margin:3px}.secondary{background:#e7edf6;color:#173b70}.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e5eaf1}th{background:#f1f5fa}.status{font-weight:bold}.muted,small{color:#64748b}.pill{padding:4px 7px;border-radius:12px;background:#e7edf6}.good{color:#147d43}.bad{color:#b42318}.warn{color:#9a6700}.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.bar input{max-width:520px}.notice{padding:10px;background:#f7f9fc;border-radius:8px;white-space:pre-wrap}
+</style></head><body>
+<header><h1>RD Manager</h1><div>Recurring Deposit Dashboard · Excel + Google Sheets sync</div></header>
 <main>
-<div class="cards">
-<div class="card">Total Target<div class="num" id="target">₹0</div></div>
-<div class="card">Total Deposited<div class="num" id="deposited">₹0</div></div>
-<div class="card">Remaining<div class="num" id="remaining">₹0</div></div>
-<div class="card">Active RDs<div class="num" id="count">0</div></div>
-</div>
-
-<section>
-<h2>Add / Edit RD</h2>
-<form id="rdform">
-<input id="id" type="hidden">
-<label>RD Name<input id="name" required placeholder="e.g. Bank RD"></label>
-<label>Monthly Installment (₹)<input id="monthly" type="number" min="1" required></label>
-<label>Target Amount (₹)<input id="goal" type="number" min="1" required></label>
-<label>Start Date<input id="start" type="date" required></label>
-<label>Duration (months)<input id="duration" type="number" min="1" value="60" required></label>
-<label>Paid Installments<input id="paid" type="number" min="0" value="0" required></label>
-<button type="submit">Save RD</button>
-</form>
-<button class="secondary" onclick="resetForm()">Clear Form</button>
-</section>
-
-<section>
-<h2>RD Records</h2>
-<p class="muted">Demo records are not added automatically. Add your own RD details.</p>
-<div class="tablewrap">
-<table>
-<thead><tr><th>Name</th><th>Monthly</th><th>Deposited</th><th>Remaining</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead>
-<tbody id="records"></tbody>
-</table>
-</div>
-</section>
-
-<section>
-<h2>Google Sheets Sync</h2>
-<p>Enter your deployed Google Apps Script Web App URL to enable online syncing.</p>
-<label>Web App URL<input id="api" placeholder="https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnSVKuN2EGlCCN364i3uqFQkfKoZt4nDu6LyMJSQS2x3nxHfm7jlMMFaW8nc5TvTNN5IleRI0CeKjlWzcs0Yl_hRKsNw1_K79Vx3gyO1OjgBdVss1yOPsXYVpKGdKHE6nCynV6NQo9oA1WLDTFD27v6rX-qX1rv1psrOSByowF4cKB7yRmKErOsM47d4cqweeMnNJyv3_4ZZmkTRaRXUX2pizzLJB1gliCouB4I8w76OSSQI_hqqGLapVpZGw3lKPWVruKiOfJTyVsa49yeJgPkMJx7IhA&lib=MVl44eA_O43RpmdISyZOlUnIOqKWV13P8"></label>
-<button onclick="saveUrl()">Save URL</button>
-<button onclick="syncNow()">Sync from Google Sheets</button>
-<button class="secondary" onclick="exportCSV()">Export CSV</button>
-<button class="secondary" onclick="document.getElementById('csvfile').click()">Import CSV</button>
-<input id="csvfile" type="file" accept=".csv" style="display:none" onchange="importCSV(event)">
-<p id="syncstatus" class="muted">Local storage active. Google Sheets is not connected yet.</p>
-</section>
+<div class="cards"><div class="card">Total Target<div class="num" id="target">₹0</div></div><div class="card">Total Deposited<div class="num" id="deposited">₹0</div></div><div class="card">Remaining<div class="num" id="remaining">₹0</div></div><div class="card">Active RDs<div class="num" id="count">0</div></div><div class="card">Overdue RDs<div class="num" id="overdue">0</div></div></div>
+<section><h2 id="formtitle">Add / Edit RD</h2><form id="rdform"><input id="id" type="hidden"><label>RD / Bank Name<input id="name" required placeholder="e.g. Post Office RD"></label><label>Account nickname (optional)<input id="account" placeholder="e.g. 5-year RD"></label><label>Monthly Installment (₹)<input id="monthly" type="number" min="1" required></label><label>Target / Maturity Amount (₹)<input id="goal" type="number" min="1" required></label><label>Opening Date<input id="start" type="date" required></label><label>Duration (months)<input id="duration" type="number" min="1" max="600" value="60" required></label><label>Paid Installments<input id="paid" type="number" min="0" value="0" required></label><label>Monthly Due Day (1–31)<input id="dueDay" type="number" min="1" max="31" value="5" required></label><button type="submit">Save RD</button></form><button class="secondary" onclick="resetForm()">Clear Form</button></section>
+<section><h2>RD Records</h2><p class="muted">Due and maturity dates are calculated from opening date, term, and monthly due day. Mark an installment paid after you have actually deposited it.</p><div class="tablewrap"><table><thead><tr><th>RD / Bank</th><th>Monthly</th><th>Deposited</th><th>Remaining</th><th>Next Due</th><th>Maturity</th><th>Status</th><th>Actions</th></tr></thead><tbody id="records"></tbody></table></div></section>
+<section><h2>Excel Import / Export</h2><p>Upload .xlsx, .xls or .csv. Common headers supported: RD Name/Bank, Account, Monthly Installment, Target Amount, Opening Date, Duration, Paid Installments, Due Day. Import adds new records and skips duplicates; it does not replace your existing data.</p><div class="bar"><input id="file" type="file" accept=".xlsx,.xls,.csv"><button onclick="importFile()">Import Excel / CSV</button><button class="secondary" onclick="exportCSV()">Export updated CSV</button><button class="secondary" onclick="exportJSON()">Backup JSON</button></div><p id="importstatus" class="muted"></p></section>
+<section><h2>Google Sheets Automatic Sync</h2><p>Paste the Apps Script Web App URL ending in /exec. Sync merges by record ID and account identity; an empty response will never erase your saved local records.</p><label>Google Apps Script Web App URL<input id="api" placeholder="https://script.google.com/macros/s/.../exec"></label><div class="bar"><button onclick="saveUrl()">Save URL</button><button onclick="syncNow()">Sync Now</button><span id="syncstatus" class="muted">Local storage active. Google Sheets not connected.</span></div><p class="muted">Cloud sync is not a bank connection. Keep a backup and do not share your Web App URL publicly.</p></section>
 </main>
 <script>
-const $ = id => document.getElementById(id);
-let rds = JSON.parse(localStorage.getItem("rd-manager-records") || "[]");
-$("api").value = localStorage.getItem("rd-manager-api") || "";
-
-function money(n){return "₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2})}
-function dateAdd(date,months){
- let d=new Date(date+"T12:00:00");
- d.setMonth(d.getMonth()+months);
- return d;
-}
-function dateText(d){return d.toISOString().slice(0,10)}
-function nextDue(rd){
- let d=dateAdd(rd.start,Number(rd.paid));
- return dateText(d);
-}
-function status(rd){
- if(Number(rd.paid)>=Number(rd.duration)) return "Completed";
- let due=new Date(nextDue(rd)+"T23:59:59");
- return due < new Date() ? "Overdue" : "Pending";
-}
-function render(){
- $("target").textContent=money(rds.reduce((s,r)=>s+Number(r.goal),0));
- $("deposited").textContent=money(rds.reduce((s,r)=>s+Number(r.monthly)*Number(r.paid),0));
- $("remaining").textContent=money(rds.reduce((s,r)=>s+Math.max(0,Number(r.goal)-Number(r.monthly)*Number(r.paid)),0));
- $("count").textContent=rds.filter(r=>Number(r.paid)<Number(r.duration)).length;
- $("records").innerHTML="";
- rds.forEach((r,i)=>{
-  const tr=document.createElement("tr");
-  [r.name,money(r.monthly),money(Number(r.monthly)*Number(r.paid)),
-   money(Math.max(0,Number(r.goal)-Number(r.monthly)*Number(r.paid))),
-   nextDue(r),status(r)].forEach((v)=>{
-    const td=document.createElement("td");td.textContent=v;tr.appendChild(td);
-  });
-  const td=document.createElement("td");
-  const edit=document.createElement("button");edit.textContent="Edit";edit.onclick=()=>editRD(i);
-  const del=document.createElement("button");del.textContent="Delete";del.className="secondary";del.onclick=()=>deleteRD(i);
-  td.append(edit,del);tr.appendChild(td);$("records").appendChild(tr);
- });
-}
-function persist(){
- localStorage.setItem("rd-manager-records",JSON.stringify(rds));render();
-}
-$("rdform").addEventListener("submit",e=>{
- e.preventDefault();
- const rd={id:$("id").value||String(Date.now()),name:$("name").value.trim(),
- monthly:Number($("monthly").value),goal:Number($("goal").value),
- start:$("start").value,duration:Number($("duration").value),paid:Number($("paid").value)};
- if(rd.paid>rd.duration){alert("Paid installments cannot exceed duration.");return}
- const i=rds.findIndex(x=>x.id===rd.id);
- if(i>=0)rds[i]=rd;else rds.push(rd);
- persist();resetForm();
-});
-function editRD(i){
- const r=rds[i];
- ["id","name","monthly","goal","start","duration","paid"].forEach(k=>$(k).value=r[k]??"");
- window.scrollTo({top:0,behavior:"smooth"});
-}
-function deleteRD(i){
- if(confirm("Delete this RD record?")){rds.splice(i,1);persist()}
-}
-function resetForm(){$("rdform").reset();$("id").value="";$("duration").value=60;$("paid").value=0}
-function saveUrl(){
- localStorage.setItem("rd-manager-api",$("api").value.trim());
- $("syncstatus").textContent="URL saved on this device. Deploy the Apps Script backend to connect.";
-}
-
-async function syncNow() {
-  const url = $("api").value.trim();
-
-  if (!url) {
-    $("syncstatus").textContent = "Please enter the Google Apps Script Web App URL.";
-    return;
-  }
-
-  $("syncstatus").textContent = "Connecting to Google Sheets...";
-
-  try {
-    const res = await fetch(url);
-
-    if (!res.ok) {
-      throw new Error("HTTP error " + res.status);
-    }
-
-    const data = await res.json();
-
-    if (!data || !Array.isArray(data.records)) {
-      throw new Error("Apps Script must return a JSON object containing a records array.");
-    }
-
-    rds = data.records.map(r => ({
-      id: String(r.id || Date.now() + Math.random()),
-      name: String(r.name || ""),
-      monthly: Number(r.monthly || 0),
-      goal: Number(r.goal || 0),
-      start: String(r.start || ""),
-      duration: Number(r.duration || 60),
-      paid: Number(r.paid || 0)
-    }));
-
-    persist();
-
-    $("syncstatus").textContent =
-      "Sync successful at " + new Date().toLocaleTimeString() +
-      ". Records loaded: " + rds.length;
-
-  } catch (e) {
-    console.error("Google Sheets sync error:", e);
-
-    $("syncstatus").textContent =
-      "Sync failed: " + e.message +
-      ". Check the Web App URL, Apps Script deployment access, and doGet() response.";
-  }
-}
-
-function exportCSV(){
- const cols=["id","name","monthly","goal","start","duration","paid"];
- const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
- const csv=[cols.join(","),...rds.map(r=>cols.map(k=>esc(r[k])).join(","))].join("\r\n");
- const a=document.createElement("a");
- a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
- a.download="rd-manager.csv";a.click();URL.revokeObjectURL(a.href);
-}
-function importCSV(e){
- const file=e.target.files[0];if(!file)return;
- const reader=new FileReader();
- reader.onload=()=>{
-  const lines=String(reader.result).trim().split(/\r?\n/);
-  const parse=line=>line.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map(x=>x.replace(/,$/,"").replace(/^"|"$/g,"").replace(/""/g,'"'));
-  const cols=parse(lines.shift());
-  const imported=lines.filter(Boolean).map(line=>{
-   const vals=parse(line),r={};cols.forEach((c,i)=>r[c]=vals[i]||"");
-   return r;
-  }).filter(r=>r.name && r.start);
-  if(confirm("Import "+imported.length+" records? This replaces current records.")){
-   rds=imported.map(r=>({...r,id:r.id||String(Date.now()+Math.random()),monthly:Number(r.monthly),goal:Number(r.goal),duration:Number(r.duration),paid:Number(r.paid)}));
-   persist();
-  }
-  e.target.value="";
- };
- reader.readAsText(file);
-}
+const $=id=>document.getElementById(id), KEY='rd-manager-records', APIKEY='rd-manager-api';
+let rds=[];try{rds=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){rds=[]}
+$('api').value=localStorage.getItem(APIKEY)||'';
+function money(n){return '₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function parseDate(s){if(!s)return null;const d=new Date(String(s).slice(0,10)+'T12:00:00');return isNaN(d)?null:d}
+function addMonths(s,n,day){const d=parseDate(s);if(!d)return null;const x=new Date(d.getFullYear(),d.getMonth()+n,1);x.setDate(Math.min(Number(day)||d.getDate(),new Date(x.getFullYear(),x.getMonth()+1,0).getDate()));return x}
+function nextDue(r){const d=addMonths(r.start,Number(r.paid)||0,Number(r.dueDay)||5);return d?iso(d):'—'}
+function maturity(r){const d=addMonths(r.start,Number(r.duration)||60,Number(r.dueDay)||5);return d?iso(d):'—'}
+function status(r){if(Number(r.paid)>=Number(r.duration))return 'Completed';const due=parseDate(nextDue(r));const today=new Date();today.setHours(0,0,0,0);return due&&due<today?'Overdue':due&&iso(due)===iso(today)?'Due today':'Pending'}
+function save(){localStorage.setItem(KEY,JSON.stringify(rds));render();if(localStorage.getItem(APIKEY))clearTimeout(window.syncTimer),window.syncTimer=setTimeout(()=>syncNow(true),1500)}
+function render(){$('target').textContent=money(rds.reduce((s,r)=>s+Number(r.goal||0),0));$('deposited').textContent=money(rds.reduce((s,r)=>s+Number(r.monthly||0)*Number(r.paid||0),0));$('remaining').textContent=money(rds.reduce((s,r)=>s+Math.max(0,Number(r.goal||0)-Number(r.monthly||0)*Number(r.paid||0)),0));$('count').textContent=rds.filter(r=>Number(r.paid)<Number(r.duration)).length;$('overdue').textContent=rds.filter(r=>status(r)==='Overdue').length;$('records').replaceChildren();rds.forEach((r,i)=>{const tr=document.createElement('tr');const vals=[r.name+(r.account?' · '+r.account:''),money(r.monthly),money(Number(r.monthly)*Number(r.paid)),money(Math.max(0,Number(r.goal)-Number(r.monthly)*Number(r.paid))),nextDue(r),maturity(r),status(r)];vals.forEach((v,j)=>{const td=document.createElement('td');td.textContent=v;if(j===6){td.className='status '+(v==='Overdue'?'bad':v==='Completed'?'good':v==='Due today'?'warn':'')}tr.appendChild(td)});const td=document.createElement('td');const edit=document.createElement('button');edit.textContent='Edit';edit.onclick=()=>editRD(i);const paid=document.createElement('button');paid.textContent='Mark paid';paid.className='secondary';paid.disabled=Number(r.paid)>=Number(r.duration);paid.onclick=()=>{if(confirm('Mark the next installment as paid for '+r.name+'?')){r.paid=Number(r.paid)+1;save()}};const del=document.createElement('button');del.textContent='Delete';del.className='secondary';del.onclick=()=>{if(confirm('Delete this RD?')){rds.splice(i,1);save()}};td.append(edit,paid,del);tr.appendChild(td);$('records').appendChild(tr)})}
+$('rdform').addEventListener('submit',e=>{e.preventDefault();const r={id:$('id').value||('rd-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)),name:$('name').value.trim(),account:$('account').value.trim(),monthly:Number($('monthly').value),goal:Number($('goal').value),start:$('start').value,duration:Number($('duration').value),paid:Number($('paid').value),dueDay:Number($('dueDay').value)||5};if(r.paid>r.duration){alert('Paid installments cannot exceed duration');return}const i=rds.findIndex(x=>x.id===r.id);if(i>=0)rds[i]=r;else if(rds.some(x=>identity(x)===identity(r))){alert('This RD appears to be a duplicate.');return}else rds.push(r);save();resetForm()});
+function editRD(i){const r=rds[i];['id','name','account','monthly','goal','start','duration','paid','dueDay'].forEach(k=>$(k).value=r[k]??'');$('formtitle').textContent='Edit RD';window.scrollTo({top:0,behavior:'smooth'})}
+function resetForm(){$('rdform').reset();$('id').value='';$('duration').value=60;$('paid').value=0;$('dueDay').value=5;$('formtitle').textContent='Add / Edit RD'}
+function normKey(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+function pick(o,names){for(const k of Object.keys(o)){if(names.includes(normKey(k))&&o[k]!==''&&o[k]!=null)return o[k]}return ''}
+function identity(r){return [String(r.name||r.bank||'').trim().toLowerCase(),String(r.account||r.accountNumber||'').trim().toLowerCase(),String(r.start||r.startDate||''),Number(r.monthly??r.monthlyAmount)||0].join('|')}
+function parseCsv(text){const rows=[];let row=[],cell='',q=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'&&q&&text[i+1]==='"'){cell+='"';i++}else if(c==='"')q=!q;else if(c===','&&!q){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(v=>v.trim()))rows.push(row);row=[];cell=''}else cell+=c}row.push(cell);if(row.some(v=>v.trim()))rows.push(row);return rows}
+function fromRow(o,i){const r={id:String(pick(o,['id','recordid','rdid'])||''),name:String(pick(o,['name','rdname','bank','bankname','institution','postoffice'])||''),account:String(pick(o,['account','accountnumber','nickname','rdnumber'])||''),monthly:Number(pick(o,['monthly','monthlyamount','monthlyinstallment','monthlyinstalment','amount','rdamount'])||0),goal:Number(pick(o,['goal','targetamount','maturityamount','target'])||0),start:String(pick(o,['start','startdate','openingdate','rdstartdate'])||''),duration:Number(pick(o,['duration','durationmonths','termmonths','tenuremonths'])||60),paid:Number(pick(o,['paid','paidinstallments','installmentspaid','instalmentspaid'])||0),dueDay:Number(pick(o,['dueday','paymentday'])||5)};if(!r.name||!r.monthly||!r.start||!parseDate(r.start)||!r.goal)throw Error('Row '+(i+2)+': missing RD name, monthly amount, target, or valid opening date.');if(r.paid>r.duration||r.paid<0)throw Error('Row '+(i+2)+': paid installments must be between 0 and duration.');if(!r.id)r.id='rd-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);return r}
+async function importFile(){const f=$('file').files[0];if(!f){alert('Choose an Excel or CSV file first.');return}try{let rows;if(/\.csv$/i.test(f.name)){const raw=parseCsv(await f.text());const heads=raw.shift();rows=raw.map(a=>Object.fromEntries(heads.map((h,i)=>[h,a[i]||''])))}else{if(!window.XLSX)throw Error('Excel reader failed to load. Try CSV instead.');const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false})}const parsed=rows.map(fromRow),seen=new Set(rds.map(identity));const fresh=parsed.filter(r=>{const k=identity(r);if(seen.has(k))return false;seen.add(k);return true});if(!confirm(parsed.length+' rows read; '+fresh.length+' new RD(s) after duplicate checks. Import new rows? Existing records will not be replaced.'))return;rds.push(...fresh);save();$('importstatus').textContent='Imported '+fresh.length+' new RD(s); skipped '+(parsed.length-fresh.length)+' duplicate(s).';}catch(e){$('importstatus').textContent='Import failed: '+e.message;alert(e.message)}}
+function csvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
+function download(name,txt,type='text/csv;charset=utf-8'){const a=document.createElement('a');const u=URL.createObjectURL(new Blob(['\ufeff',txt],{type}));a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function exportCSV(){const cols=['id','name','account','monthly','goal','start','duration','paid','dueDay','nextDue','maturityDate','status'];download('rd-manager-updated.csv',[cols.join(','),...rds.map(r=>cols.map(k=>csvCell(k==='nextDue'?nextDue(r):k==='maturityDate'?maturity(r):k==='status'?status(r):r[k])).join(','))].join('\r\n'))}
+function exportJSON(){download('rd-manager-backup.json',JSON.stringify(rds,null,2),'application/json')}
+function saveUrl(){const u=$('api').value.trim();if(u&&!(/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/.test(u)||/^https:\/\/script\.googleusercontent\.com\/macros\/echo(?:\?.*)?$/.test(u))){alert('Paste the Google Apps Script Web App URL ending in /exec.');return}if(u)localStorage.setItem(APIKEY,u);else localStorage.removeItem(APIKEY);$('syncstatus').textContent=u?'URL saved. Click Sync Now.':'Google Sheets disconnected.'}
+async function syncNow(silent=false){const url=localStorage.getItem(APIKEY)||$('api').value.trim();if(!url){$('syncstatus').textContent='Enter and save the Apps Script Web App URL first.';return}try{$('syncstatus').textContent='Reading Google Sheets…';const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const data=await res.json();if(!data||data.ok===false)throw Error(data?.error||'Apps Script returned an error');if(!Array.isArray(data.records))throw Error('Response does not contain records[]');const remote=data.records.map(x=>({id:String(x.id||x.recordId||''),name:String(x.name||x.bank||x.bankName||''),account:String(x.account||x.accountNumber||''),monthly:Number(x.monthly??x.monthlyAmount??x.monthlyInstallment)||0,goal:Number(x.goal??x.targetAmount??x.maturityAmount)||0,start:String(x.start||x.startDate||''),duration:Number(x.duration??x.termMonths)||60,paid:Number(x.paid??x.installmentsPaid??x.paidInstallments)||0,dueDay:Number(x.dueDay)||5})).filter(x=>x.name&&parseDate(x.start));if(!remote.length&&rds.length){$('syncstatus').textContent='Sheet returned 0 usable records; local data preserved. Check sheet tab and headers.';return}const merged=new Map();remote.forEach(r=>merged.set(r.id||identity(r),r));rds.forEach(r=>merged.set(r.id||identity(r),r));const result=[...merged.values()],seen=new Set();rds=[...result].filter(r=>{const k=identity(r);if(seen.has(k))return false;seen.add(k);return true});localStorage.setItem(KEY,JSON.stringify(rds));await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'upsert',records:rds})});render();$('syncstatus').textContent='Sync submitted for '+rds.length+' RD(s). Refreshing sheet…';await new Promise(r=>setTimeout(r,900));const vr=await fetch(url,{cache:'no-store'}),vd=await vr.json();if(!vr.ok||vd.ok===false||!Array.isArray(vd.records))throw Error(vd.error||'Could not verify sheet response');$('syncstatus').textContent='Sync verified · '+vd.records.length+' record(s) in Google Sheets · '+new Date().toLocaleTimeString();if(!silent)alert('Sync completed. '+rds.length+' RD record(s) merged.')}catch(e){$('syncstatus').textContent='Sync failed: '+e.message+' — check deployment URL/access.';if(!silent)alert('Sync failed: '+e.message)}}
 render();
-</script>
-</body>
-</html>
+</script></body></html>

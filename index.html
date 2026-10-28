@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RD Monthly Due Tracker</title>
+
 <style>
 :root{--bg:#f1f4f9;--card:#fff;--tx:#1a2233;--mu:#64748b;--pr:#1f5aa6;--bd:#d5dbe6;--rd:#d93025;--gr:#188038;--am:#b26a00}
 @media(prefers-color-scheme:dark){:root{--bg:#10151f;--card:#1a2130;--tx:#e8edf5;--mu:#93a1b8;--pr:#4f8fe0;--bd:#2f3a50}}
@@ -11,24 +13,39 @@
 body{margin:0;padding:12px;background:var(--bg);color:var(--tx);font-family:system-ui,Arial,sans-serif}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:12px}
 .card,.box{background:var(--card);border-radius:12px;padding:18px}
-.card small{color:var(--mu)}.card b{display:block;font-size:26px;margin-top:6px}
+.card small{color:var(--mu)}
+.card b{display:block;font-size:26px;margin-top:6px}
 h2{margin:0 0 14px}
 form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
 label{display:flex;flex-direction:column;gap:4px;font-size:14px;flex:1;min-width:160px}
 input{padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font-size:15px}
 button{padding:10px 18px;border:0;border-radius:8px;background:var(--pr);color:#fff;font-size:15px;cursor:pointer}
-button.s{padding:6px 10px;font-size:13px}button.d{background:var(--rd)}
-.w{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:640px}
-th,td{text-align:left;padding:10px;border-bottom:1px solid var(--bd)}th{color:var(--mu);font-size:13px}
-.ov{color:var(--rd);font-weight:600}.soon{color:var(--am);font-weight:600}.ok{color:var(--gr)}
+button.s{padding:6px 10px;font-size:13px}
+button.d{background:var(--rd)}
+button:disabled{opacity:.6;cursor:wait}
+.w{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th,td{text-align:left;padding:10px;border-bottom:1px solid var(--bd)}
+th{color:var(--mu);font-size:13px}
+.ov{color:var(--rd);font-weight:600}
+.soon{color:var(--am);font-weight:600}
+.ok{color:var(--gr)}
 #msg{color:var(--mu);margin:8px 0}
 </style>
 </head>
+
 <body>
+
 <div class="box" style="margin-bottom:12px">
   <h2>Google Sheet Connect</h2>
-  <form id="u"><label>Apps Script Web App URL (/exec)<input id="url" placeholder="https://script.google.com/macros/s/.../exec"></label><button type="submit">Save URL</button></form>
+  <form id="u">
+    <label>Apps Script Web App URL (/exec)
+      <input id="url" placeholder="https://script.google.com/macros/s/.../exec">
+    </label>
+    <button type="submit">Save URL</button>
+  </form>
 </div>
+
 <div class="cards">
   <div class="card"><small>Total Monthly Amount</small><b id="cTotal">₹0</b></div>
   <div class="card"><small>Total RDs</small><b id="cCount">0</b></div>
@@ -39,92 +56,379 @@ th,td{text-align:left;padding:10px;border-bottom:1px solid var(--bd)}th{color:va
 <div class="box" style="margin-bottom:12px">
   <h2>New RD Add Karo</h2>
   <form id="f">
-    <label>RD / Bank Name<input id="name" required placeholder="e.g. Post Office RD"></label>
-    <label>Monthly Installment (₹)<input id="monthly" type="number" min="1" required></label>
-    <label>Opening Date<input id="start" type="date" required></label>
+    <label>RD / Bank Name
+      <input id="name" required placeholder="e.g. Post Office RD">
+    </label>
+    <label>Monthly Installment (₹)
+      <input id="monthly" type="number" min="1" required>
+    </label>
+    <label>Opening Date
+      <input id="start" type="date" required>
+    </label>
     <button type="submit">Save RD</button>
   </form>
+  <p style="color:var(--mu);font-size:13px">
+    Dates are displayed as DD/MM/YY. The date picker may use YYYY-MM-DD internally.
+  </p>
 </div>
 
 <div class="box">
   <h2>RD Records</h2>
   <div id="msg">Loading…</div>
-  <div class="w"><table>
-    <thead><tr><th>Name</th><th>Monthly</th><th>Due Day</th><th>Opening Date</th><th>Paid</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody id="tb"></tbody>
-  </table></div>
+  <div class="w">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th><th>Monthly</th><th>Due Day</th>
+          <th>Opening Date</th><th>Paid</th><th>Next Due</th>
+          <th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
 let URL_ = "";
-try{ URL_ = localStorage.getItem("rd_url") || ""; }catch(e){}
-document.getElementById("url").value = "https://script.google.com/macros/s/AKfycbwfTXjFCc4_BqRgZmysLEvF4aWNV9JMkast3LtZ-ClzndzBg46gsy4xXoq64fP21Krpmw/exec";
+
+try {
+  URL_ = localStorage.getItem("rd_url") || "";
+} catch(e) {}
+
+const DEFAULT_URL =
+"https://script.google.com/macros/s/AKfycbwfTXjFCc4_BqRgZmysLEvF4aWNV9JMkast3LtZ-ClzndzBg46gsy4xXoq64fP21Krpmw/exec";
+
+if (!URL_) URL_ = DEFAULT_URL;
+
+document.getElementById("url").value = URL_;
+
 document.getElementById("u").onsubmit = e => {
-  e.preventDefault(); URL_ = document.getElementById("url").value.trim();
-  try{ localStorage.setItem("rd_url", URL_); }catch(e){}
+  e.preventDefault();
+  URL_ = document.getElementById("url").value.trim();
+
+  try {
+    localStorage.setItem("rd_url", URL_);
+  } catch(e) {}
+
   load();
 };
+
 const inr = n => "₹" + Number(n).toLocaleString("en-IN");
-const MS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const fmt = d => d.getDate() + " " + MS[d.getMonth()] + " " + d.getFullYear();
-const today = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
 
-function nextDue(r){
-  const [y,m,d] = String(r.start).slice(0,10).split("-").map(Number);
-  const k = m - 1 + (Number(r.paid) || 0);
-  const yy = y + Math.floor(k / 12), mm = k % 12;
+const today = () => {
+  const t = new Date();
+  return new Date(t.getFullYear(), t.getMonth(), t.getDate());
+};
+
+// Accepts DD/MM/YY, DD/MM/YYYY, YYYY-MM-DD,
+// and common Google Sheets date strings.
+function parseDate(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return null;
+
+    return new Date(
+      value.getFullYear(),
+      value.getMonth(),
+      value.getDate()
+    );
+  }
+
+  // Google Sheets serial date number, if supplied by your API.
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const epoch = new Date(1899, 11, 30);
+    epoch.setDate(epoch.getDate() + Math.floor(value));
+
+    return isNaN(epoch.getTime()) ? null : epoch;
+  }
+
+  const s = String(value).trim();
+  if (!s) return null;
+
+  // ISO date: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss...
+  let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/);
+
+  if (match) {
+    return makeValidDate(+match[1], +match[2], +match[3]);
+  }
+
+  // Indian date: DD/MM/YY, DD/MM/YYYY, DD-MM-YY.
+  // Always interpret slash-separated dates as DD/MM/YY.
+  match = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})$/);
+
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    let year = Number(match[3]);
+
+    if (match[3].length === 2) {
+      year = year <= 49 ? 2000 + year : 1900 + year;
+    }
+
+    return makeValidDate(year, month, day);
+  }
+
+  // Fallback for other date strings returned by Apps Script.
+  const fallback = new Date(s);
+
+  if (isNaN(fallback.getTime())) return null;
+
+  return new Date(
+    fallback.getFullYear(),
+    fallback.getMonth(),
+    fallback.getDate()
+  );
+}
+
+function makeValidDate(year, month, day) {
+  if (
+    !Number.isInteger(year) ||
+    month < 1 || month > 12 ||
+    day < 1 || day > 31
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day);
+
+  // Prevent invalid dates such as 31/02/26 rolling into March.
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+// Display DD/MM/YY
+const fmt = value => {
+  const d = value instanceof Date ? value : parseDate(value);
+
+  if (!d || isNaN(d.getTime())) return "Invalid date";
+
+  return String(d.getDate()).padStart(2, "0") + "/" +
+         String(d.getMonth() + 1).padStart(2, "0") + "/" +
+         String(d.getFullYear()).slice(-2);
+};
+
+function nextDue(r) {
+  const startDate = parseDate(r.start);
+
+  if (!startDate) return null;
+
+  const paid = Math.max(0, Number(r.paid) || 0);
+
+  const k = startDate.getMonth() + paid;
+  const yy = startDate.getFullYear() + Math.floor(k / 12);
+  const mm = k % 12;
+  const day = startDate.getDate();
+
   const last = new Date(yy, mm + 1, 0).getDate();
-  return new Date(yy, mm, Math.min(d, last));
+
+  return new Date(yy, mm, Math.min(day, last));
 }
 
-async function post(o){
-  await fetch(URL_, {method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(o)});
+async function post(o) {
+  const res = await fetch(URL_, {
+    method: "POST",
+    headers: {"Content-Type": "text/plain"},
+    body: JSON.stringify(o)
+  });
+
+  if (!res.ok) throw new Error("Request failed: " + res.status);
+
+  return res;
 }
 
-async function load(){
+async function load() {
   const msg = document.getElementById("msg");
-  if(!URL_){ msg.textContent = "Upar Web App URL paste karke Save URL dabao."; return; }
-  try{
+
+  if (!URL_) {
+    msg.textContent = "Web App URL paste karke Save URL dabao.";
+    return;
+  }
+
+  msg.textContent = "Loading RD records…";
+
+  try {
     const res = await fetch(URL_);
-    render(await res.json());
-  }catch(e){ msg.textContent = "Sheet se connect nahi ho paya. URL check karo."; }
+
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const data = await res.json();
+
+    // Supports either a direct array or {records:[...]} / {data:[...]}.
+    const rows = Array.isArray(data)
+      ? data
+      : Array.isArray(data.records)
+        ? data.records
+        : Array.isArray(data.data)
+          ? data.data
+          : null;
+
+    if (!rows) {
+      throw new Error("API response mein RD records array nahi mila.");
+    }
+
+    render(rows);
+  } catch(e) {
+    msg.textContent = "Sheet load failed: " + e.message +
+      ". Web App URL aur Apps Script response check karein.";
+  }
 }
 
-function render(rows){
-  const t = today(), tb = document.getElementById("tb");
+function render(rows) {
+  const t = today();
+  const tb = document.getElementById("tb");
+
   let total = 0, due = 0, over = 0;
   tb.innerHTML = "";
+
   rows.forEach(r => {
-    const m = Number(r.monthly) || 0, nd = nextDue(r);
-    const days = Math.round((nd - t) / 864e5);
+    const m = Number(r.monthly) || 0;
+    const nd = nextDue(r);
+    const sd = parseDate(r.start);
+
+    if (!sd || !nd) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+
+      td.colSpan = 8;
+      td.textContent = (r.name || "Unnamed RD") +
+        " — Invalid opening date: " + String(r.start || "");
+      tr.appendChild(td);
+      tb.appendChild(tr);
+      return;
+    }
+
+    const days = Math.round((nd - t) / 86400000);
+
     let st = "Upcoming", cls = "ok";
-    if(days < 0){ st = "Overdue (" + (-days) + " din)"; cls = "ov"; over++; }
-    else if(days <= 7){ st = days === 0 ? "Aaj due" : days + " din mein due"; cls = "soon"; }
+
+    if (days < 0) {
+      st = "Overdue (" + (-days) + " din)";
+      cls = "ov";
+      over++;
+    } else if (days <= 7) {
+      st = days === 0 ? "Aaj due" : days + " din mein due";
+      cls = "soon";
+    }
+
     total += m;
-    if(nd.getFullYear() < t.getFullYear() || (nd.getFullYear() === t.getFullYear() && nd.getMonth() <= t.getMonth())) due += m;
-    const sd = String(r.start).slice(0,10).split("-");
+
+    if (
+      nd.getFullYear() < t.getFullYear() ||
+      (
+        nd.getFullYear() === t.getFullYear() &&
+        nd.getMonth() <= t.getMonth()
+      )
+    ) {
+      due += m;
+    }
+
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td></td><td>${inr(m)}</td><td>${Number(sd[2])}</td><td>${fmt(new Date(sd[0], sd[1]-1, sd[2]))}</td><td>${Number(r.paid)||0}</td><td>${fmt(nd)}</td><td class="${cls}">${st}</td>
-      <td><button class="s">Paid ✓</button> <button class="s d">Delete</button></td>`;
-    tr.children[0].textContent = r.name;
-    const [bp, bd] = tr.querySelectorAll("button");
-    bp.onclick = async () => { bp.disabled = true; await post({action:"paid", id:r.id}); load(); };
-    bd.onclick = async () => { if(confirm("Delete " + r.name + "?")){ await post({action:"delete", id:r.id}); load(); } };
+
+    const values = [
+      r.name || "",
+      inr(m),
+      String(sd.getDate()),
+      fmt(sd),
+      String(Number(r.paid) || 0),
+      fmt(nd),
+      st
+    ];
+
+    values.forEach((value, i) => {
+      const td = document.createElement("td");
+      td.textContent = value;
+
+      if (i === 6) td.className = cls;
+
+      tr.appendChild(td);
+    });
+
+    const actions = document.createElement("td");
+
+    const bp = document.createElement("button");
+    bp.className = "s";
+    bp.textContent = "Paid ✓";
+
+    const bd = document.createElement("button");
+    bd.className = "s d";
+    bd.textContent = "Delete";
+
+    bp.onclick = async () => {
+      bp.disabled = true;
+
+      try {
+        await post({action: "paid", id: r.id});
+        await load();
+      } catch(e) {
+        bp.disabled = false;
+        alert("Paid update failed: " + e.message);
+      }
+    };
+
+    bd.onclick = async () => {
+      if (!confirm("Delete " + (r.name || "this RD") + "?")) return;
+
+      bd.disabled = true;
+
+      try {
+        await post({action: "delete", id: r.id});
+        await load();
+      } catch(e) {
+        bd.disabled = false;
+        alert("Delete failed: " + e.message);
+      }
+    };
+
+    actions.append(bp, document.createTextNode(" "), bd);
+    tr.appendChild(actions);
     tb.appendChild(tr);
   });
+
   document.getElementById("cTotal").textContent = inr(total);
   document.getElementById("cCount").textContent = rows.length;
   document.getElementById("cDue").textContent = inr(due);
   document.getElementById("cOver").textContent = over;
-  document.getElementById("msg").textContent = rows.length ? "Next due date opening date aur paid installments se calculate hoti hai. Deposit karne ke baad Paid ✓ dabao." : "Abhi koi RD nahi hai.";
+
+  document.getElementById("msg").textContent = rows.length
+    ? "Date format: DD/MM/YY. Installment deposit karne ke baad Paid ✓ dabao."
+    : "Abhi koi RD nahi hai.";
 }
 
 document.getElementById("f").onsubmit = async e => {
   e.preventDefault();
-  const b = e.target.querySelector("button"); b.disabled = true;
-  await post({action:"add", id:Date.now(), name:name.value.trim(), monthly:Number(monthly.value), start:start.value});
-  e.target.reset(); b.disabled = false; load();
+
+  const b = e.target.querySelector("button");
+  b.disabled = true;
+
+  try {
+    await post({
+      action: "add",
+      id: Date.now(),
+      name: document.getElementById("name").value.trim(),
+      monthly: Number(document.getElementById("monthly").value),
+      start: document.getElementById("start").value
+    });
+
+    e.target.reset();
+    await load();
+  } catch(e) {
+    alert("RD save failed: " + e.message);
+  } finally {
+    b.disabled = false;
+  }
 };
+
 load();
 </script>
 </body>

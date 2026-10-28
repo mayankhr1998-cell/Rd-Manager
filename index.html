@@ -58,7 +58,7 @@ th,td{text-align:left;padding:10px;border-bottom:1px solid var(--bd)}th{color:va
 <script>
 let URL_ = "";
 try{ URL_ = localStorage.getItem("rd_url") || ""; }catch(e){}
-document.getElementById("url").value = URL_;
+document.getElementById("url").value = "https://script.google.com/macros/s/AKfycbwfTXjFCc4_BqRgZmysLEvF4aWNV9JMkast3LtZ-ClzndzBg46gsy4xXoq64fP21Krpmw/exec";
 document.getElementById("u").onsubmit = e => {
   e.preventDefault(); URL_ = document.getElementById("url").value.trim();
   try{ localStorage.setItem("rd_url", URL_); }catch(e){}
